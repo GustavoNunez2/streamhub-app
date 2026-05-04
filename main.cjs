@@ -1,5 +1,10 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
+
+// Configuración básica del actualizador
+autoUpdater.autoDownload = true;
+autoUpdater.checkForUpdatesAndNotify();
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -16,6 +21,12 @@ function createWindow() {
       webSecurity: false,
       allowRunningInsecureContent: true,
     },
+  });
+
+  // Notificar al usuario cuando hay una actualización lista
+  autoUpdater.on('update-downloaded', () => {
+    // Esto reinicia la app y aplica la versión nueva automáticamente
+    autoUpdater.quitAndInstall(); 
   });
 
   win.webContents.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
