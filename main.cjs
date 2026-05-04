@@ -18,6 +18,8 @@ function createWindow() {
     },
   });
 
+  win.webContents.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
   // En producción cargamos el index.html de la build de Vite
   if (process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:3000');
