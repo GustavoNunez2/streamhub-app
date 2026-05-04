@@ -15,18 +15,19 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22 # Actualizamos a una versión compatible con 2026
+          node-version: 22
 
       - name: Install Dependencies
-        run: npm install --legacy-peer-deps # Evita conflictos de versiones de paquetes
+        run: npm install --legacy-peer-deps
 
       - name: Build React App
         run: npm run build
         env:
-          CI: false # Esto evita que la build falle por simples warnings
+          CI: false
 
       - name: Build Electron App
-        run: npx electron-builder --win --publish never
+        # CAMBIO CLAVE: Cambiamos --publish never por --publish always
+        run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -34,4 +35,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: StreamHub-Windows-Build
-          path: dist_electron/*.exe # Corregimos la ruta típica de salida de electron-builder
+          path: dist_electron/*.exe
