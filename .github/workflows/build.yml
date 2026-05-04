@@ -5,6 +5,10 @@ on:
       - main
   workflow_dispatch:
 
+# ESTO ES LO QUE FALTA: Permisos para que el robot pueda escribir la Release
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: windows-latest
@@ -26,7 +30,7 @@ jobs:
           CI: false
 
       - name: Build Electron App
-        # CAMBIO CLAVE: Cambiamos --publish never por --publish always
+        # Mantenemos el --publish always que es la clave
         run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
