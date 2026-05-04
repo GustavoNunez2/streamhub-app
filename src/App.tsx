@@ -63,23 +63,14 @@ export default function App() {
  const fetchLiveChannels = async () => {
   setIsLoading(true);
   try {
-    // Intentamos traer la lista global, pero con un "timeout" por si la red de Córdoba está lenta
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    // Usamos un User-Agent también en el fetch para evitar el error 403
+    const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' };
 
     const [streamsRes, channelsRes] = await Promise.all([
-      fetch(IPTV_URL, { 
-    signal: controller.signal,
-    headers: { 'User-Agent': 'Mozilla/5.0' } 
-  }).catch(() => ({ json: () => [] })),
-      fetch(CHANNELS_URL, { 
-    signal: controller.signal,
-    headers: { 'User-Agent': 'Mozilla/5.0' } 
-  }).catch(() => ({ json: () => [] })),
+      fetch(IPTV_URL, { headers }).catch(() => ({ json: () => [] })),
+      fetch(CHANNELS_URL, { headers }).catch(() => ({ json: () => [] }))
     ]);
     
-    clearTimeout(timeoutId);
-
     const streams = await streamsRes.json();
     const channels = await channelsRes.json();
 
@@ -96,7 +87,7 @@ export default function App() {
 
         const isAr = chan.country?.toLowerCase() === 'ar';
         const isSpa = chan.languages?.some((l: string) => 
-          ['spa', 'es'].includes(l.toLowerCase())
+          ['spa', 'es', 'lat'].includes(l.toLowerCase())
         );
 
         if (isAr || isSpa) {
@@ -105,34 +96,19 @@ export default function App() {
             title: chan.name || s.channel.replace(/-/g, ' '),
             type: 'live',
             poster: chan.logo || 'https://images.unsplash.com/photo-1594908900066-3f47337549d8?q=80&w=2070&auto=format&fit=crop',
-            description: `Señal en vivo - ${chan.name || 'TV'}`,
-            category: isAr ? '🇦🇷 Argentina' : '🌎 Latino',
+            description: `Señal en vivo: ${chan.name || 'TV'}`,
+            category: isAr ? '🇦🇷 Argentina' : '🌎 Latino / Internacional',
             streamUrl: s.url
           };
         }
         return null;
       })
       .filter((i: any): i is ContentItem => i !== null)
-      .slice(0, 300);
+      .slice(0, 400); // Subimos el límite para que Giorgio tenga variedad
 
-    // PLAN B: Si la API falló y no hay nada, cargamos 3 canales básicos para que no quede negro
-    if (mapped.length === 0) {
-      setLiveChannels([
-        {
-          id: 'manual-tn',
-          title: 'TN Todo Noticias',
-          type: 'live',
-          poster: 'https://upload.wikimedia.org/wikipedia/commons/f/f3/Logo_TN.png',
-          description: 'Noticias de Argentina',
-          category: '🇦🇷 Argentina',
-          streamUrl: 'https://live-tn.stweb.tv/tnar/live/playlist.m3u8'
-        }
-      ]);
-    } else {
-      setLiveChannels(mapped);
-    }
+    setLiveChannels(mapped);
   } catch (err) {
-    console.error('Error cargando TV:', err);
+    console.error('Error cargando la grilla completa:', err);
   } finally {
     setIsLoading(false);
   }
