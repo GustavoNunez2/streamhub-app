@@ -1,7 +1,7 @@
 {
-  "name": "react-example",
+  "name": "streamhub-app",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "main": "main.cjs",
   "scripts": {
@@ -27,7 +27,14 @@
     ],
     "win": {
       "target": "nsis"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "GustavoNunez2",
+        "repo": "streamhub-app"
+      }
+    ]
   },
   "dependencies": {
     "electron-updater": "^6.1.7",
