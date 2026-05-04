@@ -180,12 +180,12 @@ export default function App() {
   };
 
   const displayItems = useMemo(() => {
-    if (searchQuery.length > 2) return searchResults;
-    if (activeTab === 'movies') return trending.filter(i => i.type === 'movie');
-    if (activeTab === 'series') return trending.filter(i => i.type === 'series');
-    if (activeTab === 'live') return liveChannels;
-    return trending;
-  }, [activeTab, searchQuery, trending, searchResults, liveChannels]);
+  if (searchQuery.length > 2) return searchResults;
+  if (activeTab === 'movies') return trending.filter(i => i.type === 'movie');
+  if (activeTab === 'series') return trending.filter(i => i.type === 'series');
+  if (activeTab === 'live') return liveChannels; // <--- Verificá que esto esté así
+  return trending;
+}, [activeTab, searchQuery, trending, searchResults, liveChannels]);
 
   const liveCategories = useMemo(() => {
     const grouped: Record<string, ContentItem[]> = {};
