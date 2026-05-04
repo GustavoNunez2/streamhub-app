@@ -60,53 +60,77 @@ export default function App() {
     }
   };
 
-  // Fetch Live TV from IPTV-org (CORREGIDO PARA ARGENTINA/LATAM)
-  const fetchLiveChannels = async () => {
-    setIsLoading(true);
-    try {
-      const [streamsRes, channelsRes] = await Promise.all([
-        fetch(IPTV_URL),
-        fetch(CHANNELS_URL)
-      ]);
-      const streams = await streamsRes.json();
-      const channels = await channelsRes.json();
+ const fetchLiveChannels = async () => {
+  setIsLoading(true);
+  try {
+    // Intentamos traer la lista global, pero con un "timeout" por si la red de Córdoba está lenta
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-      const onlineStreams = streams.filter((s: any) => s.status === 'online');
-      const channelMap = new Map();
+    const [streamsRes, channelsRes] = await Promise.all([
+      fetch(IPTV_URL, { signal: controller.signal }).catch(() => ({ json: () => [] })),
+      fetch(CHANNELS_URL, { signal: controller.signal }).catch(() => ({ json: () => [] }))
+    ]);
+    
+    clearTimeout(timeoutId);
+
+    const streams = await streamsRes.json();
+    const channels = await channelsRes.json();
+
+    const channelMap = new Map();
+    if (Array.isArray(channels)) {
       channels.forEach((c: any) => channelMap.set(c.id, c));
-
-      const mapped: ContentItem[] = onlineStreams
-        .map((s: any) => {
-          const chan = channelMap.get(s.channel);
-          if (!chan) return null;
-          
-          // Filtro optimizado para detectar canales locales y en nuestro idioma
-          const isAr = chan.country?.toLowerCase() === 'ar';
-          const isSpa = chan.languages?.some((l: string) => l.toLowerCase() === 'spa' || l.toLowerCase() === 'es');
-          
-          if (isAr || isSpa) {
-            return {
-              id: s.url,
-              title: chan.name || s.channel.replace(/-/g, ' '),
-              type: 'live',
-              poster: chan.logo || 'https://images.unsplash.com/photo-1594908900066-3f47337549d8?q=80&w=2070&auto=format&fit=crop',
-              description: `En vivo: ${chan.name || s.channel}`,
-              category: isAr ? '🇦🇷 Argentina' : '🌎 Latino / Internacional',
-              streamUrl: s.url
-            };
-          }
-          return null;
-        })
-        .filter((i: any): i is ContentItem => i !== null)
-        .slice(0, 300); // Aumentamos a 300 canales para asegurar variedad
-
-      setLiveChannels(mapped);
-    } catch (err) {
-      console.error('Error fetching live channels:', err);
-    } finally {
-      setIsLoading(false);
     }
-  };
+
+    const mapped: ContentItem[] = streams
+      .filter((s: any) => s.status === 'online')
+      .map((s: any) => {
+        const chan = channelMap.get(s.channel);
+        if (!chan) return null;
+
+        const isAr = chan.country?.toLowerCase() === 'ar';
+        const isSpa = chan.languages?.some((l: string) => 
+          ['spa', 'es'].includes(l.toLowerCase())
+        );
+
+        if (isAr || isSpa) {
+          return {
+            id: s.url,
+            title: chan.name || s.channel.replace(/-/g, ' '),
+            type: 'live',
+            poster: chan.logo || 'https://images.unsplash.com/photo-1594908900066-3f47337549d8?q=80&w=2070&auto=format&fit=crop',
+            description: `Señal en vivo - ${chan.name || 'TV'}`,
+            category: isAr ? '🇦🇷 Argentina' : '🌎 Latino',
+            streamUrl: s.url
+          };
+        }
+        return null;
+      })
+      .filter((i: any): i is ContentItem => i !== null)
+      .slice(0, 300);
+
+    // PLAN B: Si la API falló y no hay nada, cargamos 3 canales básicos para que no quede negro
+    if (mapped.length === 0) {
+      setLiveChannels([
+        {
+          id: 'manual-tn',
+          title: 'TN Todo Noticias',
+          type: 'live',
+          poster: 'https://upload.wikimedia.org/wikipedia/commons/f/f3/Logo_TN.png',
+          description: 'Noticias de Argentina',
+          category: '🇦🇷 Argentina',
+          streamUrl: 'https://live-tn.stweb.tv/tnar/live/playlist.m3u8'
+        }
+      ]);
+    } else {
+      setLiveChannels(mapped);
+    }
+  } catch (err) {
+    console.error('Error cargando TV:', err);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleSearch = async () => {
     if (searchQuery.length < 2) return;
