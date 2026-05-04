@@ -68,8 +68,14 @@ export default function App() {
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
     const [streamsRes, channelsRes] = await Promise.all([
-      fetch(IPTV_URL, { signal: controller.signal }).catch(() => ({ json: () => [] })),
-      fetch(CHANNELS_URL, { signal: controller.signal }).catch(() => ({ json: () => [] }))
+      fetch(IPTV_URL, { 
+    signal: controller.signal,
+    headers: { 'User-Agent': 'Mozilla/5.0' } 
+  }).catch(() => ({ json: () => [] })),
+      fetch(CHANNELS_URL, { 
+    signal: controller.signal,
+    headers: { 'User-Agent': 'Mozilla/5.0' } 
+  }).catch(() => ({ json: () => [] })),
     ]);
     
     clearTimeout(timeoutId);
