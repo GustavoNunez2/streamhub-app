@@ -13,7 +13,6 @@ import { motion, AnimatePresence } from 'motion/react';
 
 // --- CONSTANTS ---
 const TMDB_KEY = '52af2cbc87520bad5c7dba6977c33866';
-const TMDB_AUTH = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI1MmFmMmNiYzg3NTIwYmFkNWM3ZGJhNjk3N2MzMzg2NiIsIm5iZiI6MTc3NzkxNzM4Mi4wNCwic3ViIjoiNjlmOGRkYzY2YWQ1ZTA5OTQ1OWRkZDM5Iiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.wH9oxS6VAXfii5MdZRutZvEsP6OXQabLMFRjVk5NJQw';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const IPTV_URL = 'https://iptv-org.github.io/api/streams.json';
 const CHANNELS_URL = 'https://iptv-org.github.io/api/channels.json';
@@ -61,7 +60,7 @@ export default function App() {
     }
   };
 
-  // Fetch Live TV from IPTV-org
+  // Fetch Live TV from IPTV-org (CORREGIDO PARA ARGENTINA/LATAM)
   const fetchLiveChannels = async () => {
     setIsLoading(true);
     try {
@@ -81,24 +80,25 @@ export default function App() {
           const chan = channelMap.get(s.channel);
           if (!chan) return null;
           
-          const isAr = chan.country === 'ar' || chan.languages?.includes('spa');
-          const hasCategory = chan.categories?.length > 0;
+          // Filtro optimizado para detectar canales locales y en nuestro idioma
+          const isAr = chan.country?.toLowerCase() === 'ar';
+          const isSpa = chan.languages?.some((l: string) => l.toLowerCase() === 'spa' || l.toLowerCase() === 'es');
           
-          if (isAr || hasCategory) {
+          if (isAr || isSpa) {
             return {
               id: s.url,
               title: chan.name || s.channel.replace(/-/g, ' '),
               type: 'live',
               poster: chan.logo || 'https://images.unsplash.com/photo-1594908900066-3f47337549d8?q=80&w=2070&auto=format&fit=crop',
               description: `En vivo: ${chan.name || s.channel}`,
-              category: isAr ? 'Argentina / Latam' : (chan.categories?.[0] || 'Varios'),
+              category: isAr ? '🇦🇷 Argentina' : '🌎 Latino / Internacional',
               streamUrl: s.url
             };
           }
           return null;
         })
         .filter((i: any): i is ContentItem => i !== null)
-        .slice(0, 200);
+        .slice(0, 300); // Aumentamos a 300 canales para asegurar variedad
 
       setLiveChannels(mapped);
     } catch (err) {
