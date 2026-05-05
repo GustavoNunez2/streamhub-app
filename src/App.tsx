@@ -12,6 +12,7 @@ import { Search, X, ChevronRight, ChevronLeft, Play, Heart } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 
+
 // --- CONSTANTS ---
 const TMDB_KEY = '52af2cbc87520bad5c7dba6977c33866';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
@@ -62,6 +63,7 @@ export default function App() {
   const [continueWatching, setContinueWatching] = useState<ContentItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
+
 
   const [favorites, setFavorites] = useState<string[]>(() =>
     JSON.parse(localStorage.getItem('streamhub_favs') || '[]')

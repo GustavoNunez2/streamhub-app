@@ -1,7 +1,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Aquí puedes exponer funciones del sistema a React
+  // Ahora la versión viene directamente de la "fuente de la verdad" de la app
+  appVersion: ipcRenderer.sendSync('get-app-version'),
+  
   sendMessage: (channel, data) => ipcRenderer.send(channel, data),
   onMessage: (channel, func) => ipcRenderer.on(channel, (event, ...args) => func(...args)),
 });
