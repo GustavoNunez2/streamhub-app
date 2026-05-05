@@ -2,9 +2,35 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
-// Configuración básica del actualizador
+// --- CONFIGURACIÓN DE ACTUALIZACIONES ---
 autoUpdater.autoDownload = true;
-autoUpdater.checkForUpdatesAndNotify();
+
+// Log de eventos para depuración (puedes redirigir esto a un archivo si quieres)
+autoUpdater.on('checking-for-update', () => {
+  console.log('🔎 Buscando actualizaciones...');
+});
+
+autoUpdater.on('update-available', (info) => {
+  console.log('✅ Actualización disponible:', info.version);
+});
+
+autoUpdater.on('update-not-available', () => {
+  console.log('✨ La aplicación está actualizada.');
+});
+
+autoUpdater.on('error', (err) => {
+  console.error('❌ Error en el actualizador:', err);
+});
+
+autoUpdater.on('update-downloaded', (info) => {const allWindows = BrowserWindow.getAllWindows();
+  if (allWindows.length > 0) {
+    allWindows[0].webContents.send('update-ready');
+  }
+});
+
+ipcMain.on('restart-app', () => {
+  autoUpdater.quitAndInstall();
+});
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -30,11 +56,6 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  // Notificar al usuario cuando hay una actualización lista
-  autoUpdater.on('update-downloaded', () => {
-    autoUpdater.quitAndInstall();
-  });
-
   // Disfrazamos la app de Chrome para evitar el bloqueo de los canales
   win.webContents.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
@@ -52,6 +73,9 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+  
+  // Solo buscar actualizaciones si la app está empaquetada
+  if (app.isPackaged) autoUpdater.checkForUpdatesAndNotify();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

@@ -61,6 +61,7 @@ export default function App() {
   const [totalSeasons, setTotalSeasons] = useState(1);
   const [continueWatching, setContinueWatching] = useState<ContentItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
 
   const [favorites, setFavorites] = useState<string[]>(() =>
     JSON.parse(localStorage.getItem('streamhub_favs') || '[]')
@@ -71,6 +72,14 @@ export default function App() {
     fetchLiveChannels();
     const saved = localStorage.getItem('streamhub_history_v2');
     if (saved) setContinueWatching(JSON.parse(saved));
+  }, []);
+
+  useEffect(() => {
+    if (window.electronAPI) {
+      window.electronAPI.onMessage('update-ready', () => {
+        setShowUpdateModal(true);
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -126,11 +135,7 @@ export default function App() {
   const fetchLiveChannels = async () => {
     setIsLoading(true);
     try {
-      const [streamsRes, channelsRes] = await Promise.all([
-        fetch(IPTV_URL),
-        fetch(CHANNELS_URL)
-      ]);
-
+      const [streamsRes, channelsRes] = await Promise.all([fetch(IPTV_URL), fetch(CHANNELS_URL)]);
       const streams = await streamsRes.json();
       const channels = await channelsRes.json();
 
@@ -139,37 +144,42 @@ export default function App() {
         channels.forEach((c: any) => channelMap.set(c.id, c));
       }
 
-      const mapped: ContentItem[] = streams
-        .map((s: any) => {
-          const chan = channelMap.get(s.channel);
-          if (!chan) return null;
+      const mapped: ContentItem[] = streams.map((s: any) => {
+        const chan = channelMap.get(s.channel);
+        if (!chan) return null;
 
-          let categoryName = 'Variados';
-          if (Array.isArray(chan.categories) && chan.categories.length > 0) {
-            const rawCat = chan.categories[0];
-            const catString = typeof rawCat === 'string' ? rawCat : rawCat.name;
-            if (catString) {
-              categoryName = catString.charAt(0).toUpperCase() + catString.slice(1);
-            }
-          }
+        // Detectar país e idioma para que no te traiga canales árabes al principio
+        const countryCode = typeof chan.country === 'string' ? chan.country.toUpperCase() : chan.country?.code?.toUpperCase();
+        const isSpanish = Array.isArray(chan.languages) && chan.languages.some((l: any) => {
+          const code = typeof l === 'string' ? l : l.code;
+          return ['spa', 'es', 'lat', 'spanish'].includes(code?.toLowerCase());
+        });
 
-          return {
-            id: s.url,
-            title: chan.name || s.channel.replace(/-/g, ' '),
-            type: 'live',
-            poster: chan.logo || '', // Se manejará el error en el onError del img
-            description: `Categoría: ${categoryName}`,
-            category: categoryName,
-            streamUrl: s.url
-          };
-        })
-        .filter((i: any): i is ContentItem => i !== null)
-        .slice(0, 1500);
+        return {
+          id: s.url,
+          title: chan.name || s.channel.replace(/-/g, ' '),
+          type: 'live',
+          // Usamos placeholder para evitar el error de src=""
+          poster: chan.logo || 'https://images.unsplash.com/photo-1594908900066-3f47337549d8?q=80&w=2070&auto=format&fit=crop',
+          category: (chan.categories?.[0] || 'Variados'),
+          streamUrl: s.url,
+          country: countryCode,
+          isSpanish: isSpanish
+        };
+      }).filter((i: any) => i !== null);
 
-      setLiveChannels(mapped);
+      // Ordenamos para que los de Argentina y en español aparezcan PRIMERO
+      const sorted = mapped.sort((a: any, b: any) => {
+        if (a.country === 'AR' && b.country !== 'AR') return -1;
+        if (b.country === 'AR' && a.country !== 'AR') return 1;
+        if (a.isSpanish && !b.isSpanish) return -1;
+        if (b.isSpanish && !a.isSpanish) return 1;
+        return a.title.localeCompare(b.title);
+      });
+
+      setLiveChannels(sorted.slice(0, 10000));
     } catch (err) {
-      console.error('🔴 Error cargando canales:', err);
-      setLiveChannels([]);
+      console.error('🔴 Error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -576,6 +586,39 @@ export default function App() {
                 title={selectedContent.title}
               />
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showUpdateModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-zinc-900 border border-brand/30 p-8 rounded-[32px] max-w-sm w-full text-center shadow-2xl shadow-brand/20"
+            >
+              <div className="w-20 h-20 bg-brand/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Play size={32} className="text-brand rotate-90" fill="currentColor" />
+              </div>
+
+              <h2 className="text-2xl font-black mb-3 tracking-tighter uppercase">¡Nueva Versión!</h2>
+              <p className="text-zinc-400 text-sm mb-8 leading-relaxed">
+                Descargamos mejoras importantes para tu experiencia de streaming.
+                <br /><strong>¿Querés reiniciar ahora para aplicar los cambios?</strong>
+              </p>
+
+              <button
+                onClick={() => window.electronAPI.sendMessage('restart-app')}
+                className="w-full bg-brand text-white font-black py-4 rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-brand/20 uppercase tracking-[0.2em] text-[10px]"
+              >
+                Actualizar y Reiniciar
+              </button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
