@@ -23,17 +23,28 @@ function createWindow() {
     },
   });
 
-  // Notificar al usuario cuando hay una actualización lista
-  autoUpdater.on('update-downloaded', () => {
-    // Esto reinicia la app y aplica la versión nueva automáticamente
-    autoUpdater.quitAndInstall(); 
+  // --- BLOQUEO DE POPUPS Y VENTANAS EXTERNAS ---
+  // Esta es la clave: cualquier intento de abrir una ventana nueva se deniega.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    console.log(`🚫 Popup bloqueado: ${url}`);
+    return { action: 'deny' };
   });
 
+  // Notificar al usuario cuando hay una actualización lista
+  autoUpdater.on('update-downloaded', () => {
+    autoUpdater.quitAndInstall();
+  });
+
+  // Disfrazamos la app de Chrome para evitar el bloqueo de los canales
   win.webContents.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-  // En producción cargamos el index.html de la build de Vite
-  if (process.env.NODE_ENV === 'development') {
+  // LÓGICA DE CARGA CORREGIDA
+  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+
+  if (isDev) {
     win.loadURL('http://localhost:3000');
+    // COMENTÁ O BORRÁ LA SIGUIENTE LÍNEA:
+    // win.webContents.openDevTools(); 
   } else {
     win.loadFile(path.join(__dirname, 'dist/index.html'));
   }
