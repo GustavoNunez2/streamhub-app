@@ -12,6 +12,8 @@ export interface ContentItem {
   rating?: string;
   episodes?: Episode[];
   streamUrl: string;
+  country?: string;
+  isSpanish?: boolean;
 }
 
 export interface Episode {

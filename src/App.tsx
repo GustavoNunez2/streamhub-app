@@ -135,7 +135,11 @@ export default function App() {
   const fetchLiveChannels = async () => {
     setIsLoading(true);
     try {
-      const [streamsRes, channelsRes] = await Promise.all([fetch(IPTV_URL), fetch(CHANNELS_URL)]);
+      const [streamsRes, channelsRes] = await Promise.all([
+        fetch(IPTV_URL),
+        fetch(CHANNELS_URL)
+      ]);
+
       const streams = await streamsRes.json();
       const channels = await channelsRes.json();
 
@@ -144,40 +148,63 @@ export default function App() {
         channels.forEach((c: any) => channelMap.set(c.id, c));
       }
 
-      const mapped: ContentItem[] = streams.map((s: any) => {
-        const chan = channelMap.get(s.channel);
-        if (!chan) return null;
+      const mapped: ContentItem[] = streams
+        .map((s: any) => {
+          const chan = channelMap.get(s.channel);
+          if (!chan) return null;
 
-        // Detectar país e idioma para que no te traiga canales árabes al principio
-        const countryCode = typeof chan.country === 'string' ? chan.country.toUpperCase() : chan.country?.code?.toUpperCase();
-        const isSpanish = Array.isArray(chan.languages) && chan.languages.some((l: any) => {
-          const code = typeof l === 'string' ? l : l.code;
-          return ['spa', 'es', 'lat', 'spanish'].includes(code?.toLowerCase());
-        });
+          // 1. Corregimos el país
+          const countryCode = typeof chan.country === 'string'
+            ? chan.country.toUpperCase()
+            : chan.country?.code?.toUpperCase();
 
-        return {
-          id: s.url,
-          title: chan.name || s.channel.replace(/-/g, ' '),
-          type: 'live',
-          // Usamos placeholder para evitar el error de src=""
-          poster: chan.logo || 'https://images.unsplash.com/photo-1594908900066-3f47337549d8?q=80&w=2070&auto=format&fit=crop',
-          category: (chan.categories?.[0] || 'Variados'),
-          streamUrl: s.url,
-          country: countryCode,
-          isSpanish: isSpanish
-        };
-      }).filter((i: any) => i !== null);
+          // 2. Corregimos isSpanish (cambiamos el "1" por "l")
+          const isSpanish = Array.isArray(chan.languages) && chan.languages.some((l: any) => {
+            const code = typeof l === 'string' ? l : l.code; // Aquí usamos la L de la iteración
+            return ['spa', 'es', 'lat', 'spanish'].includes(code?.toLowerCase());
+          });
 
-      // Ordenamos para que los de Argentina y en español aparezcan PRIMERO
-      const sorted = mapped.sort((a: any, b: any) => {
+          // 3. DEFINIMOS categoryName (esto es lo que te faltaba)
+          let categoryName = 'Variados';
+          if (Array.isArray(chan.categories) && chan.categories.length > 0) {
+            const rawCat = chan.categories[0];
+            const catString = typeof rawCat === 'string' ? rawCat : rawCat.name;
+            if (catString) {
+              categoryName = catString.charAt(0).toUpperCase() + catString.slice(1);
+            }
+          }
+
+          return {
+            id: s.url,
+            title: chan.name || s.channel.replace(/-/g, ' '),
+            type: 'live',
+            poster: chan.logo || 'https://images.unsplash.com/photo-1594908900066-3f47337549d8?q=80&w=2070&auto=format&fit=crop',
+            description: `Categoría: ${categoryName}`,
+            category: categoryName,
+            streamUrl: s.url,
+            country: countryCode,
+            isSpanish: isSpanish
+          };
+        })
+        .filter((i: any): i is ContentItem => i !== null);
+
+      // --- EL NUEVO ORDENAMIENTO ---
+      const sorted = mapped.sort((a, b) => {
+        // 1. Prioridad máxima: Argentina
         if (a.country === 'AR' && b.country !== 'AR') return -1;
         if (b.country === 'AR' && a.country !== 'AR') return 1;
+
+        // 2. Si ninguno es AR (o ambos lo son), vamos por idioma Español
         if (a.isSpanish && !b.isSpanish) return -1;
         if (b.isSpanish && !a.isSpanish) return 1;
+
+        // 3. Todo lo demás, estrictamente alfabético de la A a la Z
         return a.title.localeCompare(b.title);
       });
 
-      setLiveChannels(sorted.slice(0, 10000));
+      // Seteamos una cantidad masiva para que la búsqueda sea realmente global
+      setLiveChannels(sorted.slice(0, 20000));
+
     } catch (err) {
       console.error('🔴 Error:', err);
     } finally {
@@ -275,17 +302,16 @@ export default function App() {
 
   // --- LÓGICA DE FILTRADO PARA TV EN VIVO ---
   const displayLiveChannels = useMemo(() => {
-    let filtered = liveChannels;
+    let filtered = liveChannels; // Aquí ya tenés los 20.000 canales
 
-    // 1. Filtrar por búsqueda
+    // 1. Filtro por búsqueda (Caja de texto)
     if (searchQuery) {
       filtered = filtered.filter(c =>
-        c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.category?.toLowerCase().includes(searchQuery.toLowerCase())
+        c.title.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
-    // 2. Filtrar por categoría seleccionada
+    // 2. Filtro por categoría (Botones superiores)
     if (selectedCategory !== 'Todos') {
       filtered = filtered.filter(c => c.category === selectedCategory);
     }
