@@ -32,6 +32,10 @@ ipcMain.on('restart-app', () => {
   autoUpdater.quitAndInstall();
 });
 
+ipcMain.on('get-app-version', (event) => {
+  event.returnValue = app.getVersion(); 
+});
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
